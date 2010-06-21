@@ -9,8 +9,8 @@ several advantages over prior art (or at least urllib2 and twisted.web.client):
     * Ability to simultaneously maintain multiple persistent connections.
   * Transparent Gzip and Deflate Content-encoding support.
   * Ability to stream data, by performing call-backs with data chunks,
-    alleviates the 
-    * Advanced Gzip support has to accomdate decoding of chunked streams.
+    alleviates the need to buffer large files.
+    * Advanced Gzip support accomdates incremental decoding of chunked streams.
   * Asynchronous (twisted) API.
   * Integration with cookielib, and compatibility with urllib2.Request API.
   * Proxy Support.
