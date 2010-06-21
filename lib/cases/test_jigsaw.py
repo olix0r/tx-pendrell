@@ -186,7 +186,7 @@ class JigsawTestMixin(PendrellTestMixin):
 
     @inlineCallbacks
     def test_401basicAuth(self):
-        self.agent.secure = False
+        self.agent.secure = True
         url = "http://jigsaw.w3.org/HTTP/Basic/"
 
         authenticator = auth.BasicAuthenticator("guest", "guest")
@@ -203,14 +203,14 @@ class JigsawTestMixin(PendrellTestMixin):
         self.assertEquals(200, response.status)
 
 
-    @inlineCallbacks
-    def test_401digestAuthMD5Sess(self):
-        authenticator = auth.Authenticator("guest", "guest")
-        response = yield self.getPage("http://jigsaw.w3.org/HTTP/Digest/")
-        response.assertEquals(200, response.status)
-
-    test_401digestAuthMD5Sess.todo = \
-            "MD5-sess authentication is not yet implemented or testable."
+    #@inlineCallbacks
+    #def test_401digestAuthMD5Sess(self):
+    #    authenticator = auth.Authenticator("guest", "guest")
+    #    response = yield self.getPage("http://jigsaw.w3.org/HTTP/Digest/")
+    #    response.assertEquals(200, response.status)
+    #
+    #test_401digestAuthMD5Sess.todo = \
+    #        "MD5-sess authentication is not yet implemented or testable."
 
 
 

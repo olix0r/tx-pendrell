@@ -20,8 +20,9 @@ TODO
   - Provide a subclass of RobotParser that uses this interface.
 """
 
-import cookielib
+import cookielib, sys
 
+from twisted import version as txVersion
 from twisted.internet import (error as netErr,
         interfaces as netInterfaces, protocol, reactor)
 from twisted.internet.defer import (
@@ -102,10 +103,19 @@ class Agent(object):
 
     maxRedirects = 5
 
-    identifier = "/".join((_PACKAGE, _VERSION))
+    identifier = "{pkg}/{ver} ({txPkg}/{txVer}; Python/{pyVer})".format(
+            pkg=_PACKAGE.capitalize(), ver=_VERSION,
+            txPkg=txVersion.package.capitalize(), txVer=txVersion.short(),
+            pyVer="{0}.{1}.{2}".format(*sys.version_info))
 
     maxConnections = _MAX_TOTAL_CONNECTIONS
     maxConnectionsPerSite = _MAX_CONNECTIONS_PER_SITE
+    
+    preferredTransferEncodings = ("gzip", "deflate", )
+    preferredConnection = "keep-alive"
+
+    requestClass = Request
+    followRedirect = True
 
 
     def __init__(self, **kw):
@@ -118,33 +128,30 @@ class Agent(object):
             maxConnections --  [default: self.maxConnections]
             maxConnectionsPerSite --  [default: self.maxConnectionsPerSite]
             preferredConnection --  [default: "keep-alive"]
-            preferredTransferEncoding -- [default: "gzip,deflate"]
+            preferredTransferEncodings -- [default: ("gzip", "deflate")]
             requestClass --  [default: Request]
             resolver --  [default: reactor.resolver]
         """
-        self.followRedirect = kw.pop("followRedirect", True) is not False
         self.secure = kw.pop("secure", False)
         self.identifier = kw.pop("identifier", self.identifier)
 
-        mc = kw.pop("maxConnections", self.maxConnections)
-        self.maxConnections = int(mc)
-
-        mcps = kw.pop("maxConnectionsPerSite", self.maxConnectionsPerSite)
-        self.maxConnectionsPerSite = int(mcps)
+        if "followRedirect" in kw:
+            self.followRedirect = kw["followRedirect"]
+        if "maxConnections" in kw:
+            self.maxConnections = int(kw["maxConnections"])
+        if "maxConnectionsPerSite" in kw:
+            self.maxConnectionsPerSite = int(kw["maxConnectionsPerSite"])
+        if "preferredConnection" in kw:
+            self.preferredConnection = kw["preferredConnection"]
+        if "preferredTransferEncodings" in kw:
+            self.preferredTransferEncodings = kw["preferredTransferEncodings"]
+        if "requestClass" in kw:
+            self.requestClass = kw["requestClass"]
 
         self._timeout = kw.pop("timeout", None)
-
         self._cookieJar = kw.pop("cookieJar", cookielib.CookieJar())
         self._proxyer = kw.pop("proxyer", Proxyer())
-        self.requestClass = kw.pop("requestClass", Request)
         self._resolver = kw.pop("resolver", reactor.resolver)
-
-        c = kw.pop("preferredConnection", "keep-alive")
-        self.preferredConnection = c
-
-        te = kw.pop("preferredTransferEncoding", "gzip,deflate")
-        self.preferredTransferEncoding = te
-
         self._requesterCache = dict()
         self._requestQueue = dict()
 
@@ -157,11 +164,6 @@ class Agent(object):
 
     def __del__(self):
         self.cleanup()
-
-
-    def _schemeSecured(self, scheme):
-        return scheme == "https" or self.secure == False
-
 
     @inlineCallbacks
     def open(self, request, authenticator=None, followRedirect=None,
@@ -214,15 +216,21 @@ class Agent(object):
             log.msg("Redirected to %r" % response)
 
         except UnauthorizedResponse, ur:
-            if authenticator:
-                scheme = ur.authScheme
-                if scheme == "Basic" and not self._schemeSecured(scheme):
+            if self._supportedAuthenticationScheme(ur.scheme, authenticator):
+                if not self._isSecureRequest(requester, authenticator):
                     raise InsecureAuthentication(ur.response, authenticator)
 
-                auth = yield authenticator.authorize(scheme, ur.authParams)
+                try:
+                    auth = yield authenticator.authorize(
+                            ur.scheme, **ur.params)
+                except:
+                    log.err()
+                    raise ur
+                if not auth:
+                    raise ur
                 log.msg("Built authentication for %r: %r" % (request, auth))
-                authenticated = self.buildAuthenticatedRequest(request, auth)
 
+                authenticated = self._buildAuthenticatedRequest(request, auth)
                 log.msg("Authenticating with: %r" % authenticated)
                 response = yield self.open(authenticated,
                         followRedirect = followRedirect,
@@ -232,7 +240,7 @@ class Agent(object):
 
             else:
                 log.msg("No authenticator installed.")
-                raise
+                raise ur
 
         else:
             log.msg("%r: response for %r: %r" % (self, request, response))
@@ -242,9 +250,18 @@ class Agent(object):
         returnValue(response)
 
 
-    def buildAuthenticatedRequest(self, request, authorization):
-        authHeader = "Authorization"
-        return request.copy(headers={authHeader:authorization})
+    def _supportedAuthenticationScheme(self, scheme, authenticator):
+        return bool(authenticator and
+                scheme.upper() in [s.upper() for s in authenticator.schemes])
+
+    def _isSecureRequest(self, requester, authenticator):
+        return bool(self.secure or requester.secure or authenticator.secure)
+
+
+    _authHeader = "Authorization"
+
+    def _buildAuthenticatedRequest(self, request, authorization):
+        return request.copy(headers={self._authHeader:authorization})
 
 
     def extractCookies(self, response):
@@ -313,8 +330,9 @@ class Agent(object):
         if self.preferredConnection:
             request.headers.setdefault("Connection", self.preferredConnection)
 
-        if self.preferredTransferEncoding:
-            request.headers.setdefault("TE", self.preferredTransferEncoding)
+        if self.preferredTransferEncodings:
+            request.headers.setdefault("TE",
+                    ",".join(self.preferredTransferEncodings))
 
         request.headers.setdefault("User-agent", str(self.identifier))
 
@@ -329,23 +347,19 @@ class Agent(object):
     #
     # TODO Load RequesterFactories as Plugins
     #
+    _requesterClasses = {
+        "http": HTTPRequester,
+        "https": HTTPSRequester,
+        }
 
-    def _buildRequester(self, queueKeyURL, **kw):
-        scheme = queueKeyURL.scheme
+    def _buildRequester(self, request, **kw):
+        scheme = request.scheme
         log.msg("Creating a(n) %s requester" % scheme, logLevel=log.DEBUG)
 
         kw.setdefault("maxConnections", self.maxConnectionsPerSite)
 
-        if scheme == "http":
-            requesterClass = HTTPRequester
-
-        elif scheme == "https":
-            requesterClass = HTTPSRequester
-
-        else:
-            raise RuntimeError("Unsupported scheme: %r" % scheme)
-
-        host, port = queueKeyURL.host, queueKeyURL.port
+        host, port = request.host, request.port
+        requesterClass = self._requesterClasses[scheme]
         requester = Multiplexer(requesterClass, scheme, host, port, **kw)
 
         return requester

@@ -31,6 +31,9 @@ test: build
 test-agent: build
 	${TRIAL} pendrell.cases.test_agent 2>&1 | tee _trial_results.agent
 
+test-auth: build
+	${TRIAL} pendrell.cases.test_auth 2>&1 | tee _trial_results.auth
+
 test-jigsaw: build
 	${TRIAL} pendrell.cases.test_jigsaw 2>&1 \
 		| tee _trial_results.functional

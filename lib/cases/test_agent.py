@@ -4,6 +4,8 @@
 import os, random
 from hashlib import md5
 
+from twisted.cred.error import LoginFailed, UnauthorizedLogin
+from twisted.cred.checkers import ICredentialsChecker
 from twisted.internet import error as netErr, protocol, reactor
 from twisted.internet.defer import (
         Deferred, gatherResults,
@@ -11,10 +13,15 @@ from twisted.internet.defer import (
         setDebugging as setDeferredDebugging)
 from twisted.python import failure
 from twisted.trial import unittest
+from twisted.web.guard import HTTPAuthSessionWrapper
+from twisted.web.iweb import ICredentialFactory
+from twisted.web.resource import Resource
+from twisted.web.server import Site
+
+from zope.interface import Interface, Attribute, implements
 
 from pendrell import log
 from pendrell import agent as pendrell, auth, error, messages
-from pendrell.cases.server import JunkSite
 from pendrell.cases.md5_server import MD5Site
 from pendrell.cases.util import PendrellTestMixin, trialIsOnline
 
@@ -146,4 +153,77 @@ class TimeoutTest(PendrellTestMixin, unittest.TestCase):
 
         self.assertTrue(timedOut)
 
+
+
+class IStoopidCredential(Interface):
+    name = Attribute("What's yer name?")
+    secret = Attribute("What's the secret, stoopid?")
+
+
+class StoopidChecker(object):
+    implements(ICredentialsChecker)
+
+    credentialInterfaces = (IStoopidCredential, )
+
+    secret = "I LIKE TAC0S!"
+
+    def requestAvatarId(self, cred):
+        if cred.secret != self.secert:
+            raise UnauthorizedLogin("Unauthorized login.")
+        return cred.name
+
+
+class StoopidCredentialFactory(object):
+    implements(ICredentialFactory)
+
+    credentialInterfaces = (IStoopidCredential, )
+
+    secret = "I LIKE TAC0S!"
+
+    def getChallenge(self, request):
+        return {"realm": self.realm, "question": "What's the password?", }
+
+    def decode(self, response, request):
+        auth = self._parseAuth(response)
+        try:
+            self._verifyChallenge(auth["challenge"], request)
+            creds = self._buildCredentials(auth, request)
+        except KeyError, ke:
+            raise LoginFailed("{0!r} not in authorization.".format(*ke.args))
+        return creds
+
+    def _parseAuth(self, response):
+        def unQuote(s):
+            if s and (s[0] in "\"\'") and (s[0] == s[-1]):
+                s = s[1:-1]
+                return s
+
+        auth = dict()
+        log.msg("Parsing response: {0!r}".format(response))
+        for segment in response.replace("\n", " ").split(","):
+            log.msg("Parsing segment: {0!r}".format(segment))
+            key, val = [s.strip() for s in segment.split("=", 1)]
+            auth[key] = unQuote(val)
+
+        return auth
+
+
+
+class AuthorizationTest(unittest.TestCase):
+
+    def _buildPortal(self, svc):
+        r = IRealm(svc)
+        p = Portal(r)
+
+    def setUp(self):
+        self.agent = pendrell.Agent()
+
+    @inlineCallbacks
+    def test_authorize(self):
+        response = yield self.agent.open(
+                "http://localhost:{port}/authorized",
+                authenticator=self.authenticator,
+                secure=True,
+                )
+    test_authorize.skip = "Not yet ready..."
 

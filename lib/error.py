@@ -54,16 +54,14 @@ class UnauthorizedResponse(WebError):
         authentication = authenticationValues[0]
         scheme, params = authentication.split(None, 1)
 
-        self.authScheme = scheme = scheme.upper()
+        self.scheme = scheme = scheme.upper()
 
         paramList = self.headerRegex.findall(params)
         assert paramList
 
-        self.authParams = params = dict(paramList)
-        assert "realm" in params
-
-        self.authParams["method"] = response.method
-        self.authParams["uri"] = response.request.path
+        self.params = params = dict(paramList)
+        self.params["method"] = response.method
+        self.params["uri"] = response.request.path
 
 
 

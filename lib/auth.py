@@ -1,45 +1,53 @@
 import hashlib
 
 from twisted.internet.defer import maybeDeferred
+from zope.interface import Interface, Attribute, implements
 from pendrell import log
 
 
+class IAuthenticator(Interface):
 
-class Authenticator(object):
+    schemes = Attribute("Sequence of authentication schemes")
+    secure = Attribute("True iff this authorization is plaintext-safe")
+
+    def authorize(scheme, **params):
+        """Generate an authorization string."""
+
+
+
+class UserPassAuthenticatorBase(object):
+    implements(IAuthenticator)
 
     def __init__(self, username, password):
         self.username = username
         self.password = password
 
-
-    def authorize(self, scheme, params):
-        scheme = scheme.lower()
-        try:
-            authMaker = getattr(self, "authorize_%s" % scheme)
-        except AttributeError:
-            raise ValueError("Unsupported authorization scheme for %s: %s" % (
-                             self.__class__.__name__,
-                             scheme
-                 ))
-        else:
-            return maybeDeferred(authMaker, params)
+    def authorize(self, **params):
+        raise NotImplementedError()
 
 
 
-class BasicAuthenticator(Authenticator):
+class BasicAuthenticator(UserPassAuthenticatorBase):
 
-    def authorize_basic(self, params):
+    schemes = ("Basic", )
+    secure = False
+
+    def authorize(self, scheme, **params):
         """
         """
         cred =  "%s:%s" % (self.username, self.password)
+        return "{scheme} {params}".format(scheme=scheme,
+                params=cred.encode("base64").replace("\n", ""))
 
-        return "Basic %s" % cred.encode("base64").replace("\n", "")
 
 
+class DigestAuthenticator(UserPassAuthenticatorBase):
 
-class DigestAuthenticator(Authenticator):
+    schemes = ("Digest", )
+    secure = True
+    defaultAlgorithm = "md5"
 
-    def authorize_digest(self, params):
+    def authorize(self, scheme, **params):
         """Compute the digested authentication token as specfied by RFC 2617.
 
         Arguments:
@@ -53,28 +61,36 @@ class DigestAuthenticator(Authenticator):
         """
         log.debug("Beginning digest auth: {0!r}".format(params))
 
-        algorithm = params.get("algorithm", "md5").lower()
+        algorithm = params.get("algorithm", self.defaultAlgorithm).lower()
         realm = params["realm"]
-        reqMethod = params["method"]
-        reqURI = params["uri"]
+        method = params["method"]
+        uri = params["uri"]
         nonce = params["nonce"]
 
-        # Compute digest response
-        a1 = "%s:%s:%s" % (self.username, realm, self.password)
-        a2 = "%s:%s" % (reqMethod, reqURI)
-        a1Dig = hashlib.new(algorithm, a1).hexdigest()
-        a2Dig = hashlib.new(algorithm, a2).hexdigest()
-        rsp = "%s:%s:%s" % (a1Dig, nonce, a2Dig)
-        rspDig = hashlib.new(algorithm, rsp).hexdigest()
+        rsp = self._generateResponse(algorithm, realm, method, uri, nonce)
 
-        auth = "Digest " + ", ".join((
-                "username=\"%s\"" % self.username,
-                "realm=\"%s\"" % realm,
-                "nonce=\"%s\"" % nonce,
-                "uri=\"%s\"" % reqURI,
-                "response=\"%s\"" % rspDig,
-            ))
-        return auth
+        return ("{scheme} username=\"{username}\", realm=\"{realm}\", "
+                "nonce=\"{nonce}\", uri=\"{uri}\", response=\"{rsp}\""
+                ).format(scheme=scheme, username=self.username, realm=realm,
+                        nonce=nonce, uri=uri, rsp=rsp)
+
+
+    @staticmethod
+    def _generateResponse(algorithm, realm, method, uri, nonce):
+        r1 = hashlib.new(algorithm, 
+                "{0.username}:{1}:{0.password}".format(self, realm)
+                ).hexdigest()
+
+        r2 = hashlib.new(algorithm,
+                "{0}:{1}".format(method, uri)
+                ).hexdigest()
+
+        rsp = hashlib.new(algorithm,
+                "{0}:{1}:{2}".format(r1, nonce, r2)
+                ).hexdigest()
+
+        return rsp
+
 
 
 __id__ = """$Id: agent.py 84 2010-06-01 16:01:45Z ver $"""[5:-2]

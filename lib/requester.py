@@ -15,11 +15,13 @@ from pendrell.protocols import HTTPProtocol
 
 class IRequester(IProtocolFactory):
 
-    scheme = Attribute("")
-    host = Attribute("")
-    port = Attribute("")
+    scheme = Attribute("URL scheme")
+    host = Attribute("Remote host (may be None for some schemes)")
+    port = Attribute("Remote port (may be None for some schemes)")
 
-    maxConnections = Attribute("")
+    secure = Attribute("True iff this scheme provides secure communication.")
+
+    maxConnections = Attribute("Maximum number of concurrent connections")
 
     def issueRequest(request):
         """Issue a request (duh)."""
@@ -42,6 +44,11 @@ class Multiplexer(object):
 
         self.maxConnections = kw.pop("maxConnections", self.maxConnections)
         self.timeout = kw.pop("timeout", self.timeout)
+
+
+    @property
+    def secure(self):
+        return self.requesterClass.secure
 
 
     def __str__(self):
@@ -111,6 +118,8 @@ class Multiplexer(object):
 
 
 class RequesterBase(_ClientFactory):
+
+    secure = False
 
     def __init__(self, scheme, host, port, timeout=None):
         self.scheme = scheme
@@ -323,6 +332,8 @@ class HTTPRequester(RequesterBase):
 
 
 class HTTPSRequester(HTTPRequester):
+
+    secure = True
 
     def __init__(self, *args, **kw):
         HTTPRequester.__init__(self, *args, **kw)
