@@ -16,25 +16,23 @@ class IAuthenticator(Interface):
 
 
 class UserPassAuthenticatorBase(object):
-    implements(IAuthenticator)
 
     def __init__(self, username, password):
         self.username = username
         self.password = password
 
-    def authorize(self, **params):
+    def authorize(self, scheme, **params):
         raise NotImplementedError()
 
 
 
 class BasicAuthenticator(UserPassAuthenticatorBase):
+    implements(IAuthenticator)
 
     schemes = ("Basic", )
     secure = False
 
     def authorize(self, scheme, **params):
-        """
-        """
         cred =  "%s:%s" % (self.username, self.password)
         return "{scheme} {params}".format(scheme=scheme,
                 params=cred.encode("base64").replace("\n", ""))
@@ -42,6 +40,7 @@ class BasicAuthenticator(UserPassAuthenticatorBase):
 
 
 class DigestAuthenticator(UserPassAuthenticatorBase):
+    implements(IAuthenticator)
 
     schemes = ("Digest", )
     secure = True
@@ -52,8 +51,7 @@ class DigestAuthenticator(UserPassAuthenticatorBase):
 
         Arguments:
             params --  Dictionary with the following keys:
-                algorithm [default: "MD5"] --
-                        Currently only the MD5 digest algorithm is supported.
+                algorithm [default: "md5"] --  Digest algorithm.
                 realm --  Authentication realm as specified by the server.
                 method --  Request method (e.g. GET, POST)
                 uri --  URI of the requested resource.
@@ -75,8 +73,7 @@ class DigestAuthenticator(UserPassAuthenticatorBase):
                         nonce=nonce, uri=uri, rsp=rsp)
 
 
-    @staticmethod
-    def _generateResponse(algorithm, realm, method, uri, nonce):
+    def _generateResponse(self, algorithm, realm, method, uri, nonce):
         r1 = hashlib.new(algorithm, 
                 "{0.username}:{1}:{0.password}".format(self, realm)
                 ).hexdigest()
@@ -92,6 +89,4 @@ class DigestAuthenticator(UserPassAuthenticatorBase):
         return rsp
 
 
-
-__id__ = """$Id: agent.py 84 2010-06-01 16:01:45Z ver $"""[5:-2]
 

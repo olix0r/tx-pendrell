@@ -27,7 +27,7 @@ from twisted.internet import (error as netErr,
         interfaces as netInterfaces, protocol, reactor)
 from twisted.internet.defer import (
         Deferred, DeferredList,
-        inlineCallbacks, returnValue)
+        maybeDeferred, inlineCallbacks, returnValue)
 from twisted.python import failure, urlpath, util
 from twisted.web import client as webClient, http
 parseUrl = webClient._parse
@@ -185,7 +185,8 @@ class Agent(object):
             self.requestClass.
         """
         request = self.buildRequest(request, **kw)
-        log.msg("Opening %r" % request, logLevel=log.DEBUG)
+        log.debug("Opening {0}".format(request))
+        log.debug("Authenticator: {0}".format(authenticator))
 
         assert proxy is None or isinstance(proxy, Proxy)
         timeout = kw.get("timeout", self._timeout)
@@ -221,8 +222,9 @@ class Agent(object):
                     raise InsecureAuthentication(ur.response, authenticator)
 
                 try:
-                    auth = yield authenticator.authorize(
-                            ur.scheme, **ur.params)
+                    auth = yield maybeDeferred(
+                            authenticator.authorize, ur.scheme, **ur.params
+                            )
                 except:
                     log.err()
                     raise ur
@@ -239,7 +241,7 @@ class Agent(object):
                         **kw)
 
             else:
-                log.msg("No authenticator installed.")
+                log.msg("No {0} authenticator installed.".format(ur.scheme))
                 raise ur
 
         else:
@@ -251,8 +253,17 @@ class Agent(object):
 
 
     def _supportedAuthenticationScheme(self, scheme, authenticator):
-        return bool(authenticator and
-                scheme.upper() in [s.upper() for s in authenticator.schemes])
+        if authenticator:
+            schemes = authenticator.schemes
+            log.debug("Supported auth schemes: {0}".format(", ".join(schemes)))
+            for s in schemes:
+                if s.upper() == scheme.upper():
+                    return True
+            log.debug("Unsupported auth scheme: {0}".format(scheme))
+        else:
+            log.debug("No authenticator installed")
+        return False
+
 
     def _isSecureRequest(self, requester, authenticator):
         return bool(self.secure or requester.secure or authenticator.secure)
