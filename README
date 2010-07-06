@@ -15,5 +15,5 @@ several advantages over prior art (or at least urllib2 and twisted.web.client):
   * Integration with cookielib, and compatibility with urllib2.Request API.
   * Proxy Support.
 
-$Id$
-
+This software is distributed under the MIT license.  See the LICENSE file for
+further information.

@@ -30,7 +30,17 @@ core.setup(
 
     description = "An HTTP 1.1 user agent for the programming web.",
     long_description = getReadme(),
-    #url = "http://olix0r.net/py/pendrell",
+    url = "http://pendrell.olix0r.net/",
+
+    license = "MIT",
+    classifiers = [
+        "Development Status :: 4 - Beta",
+        "Environment :: Web Environment",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python",
+        "Topic :: Communications :: WWW",
+        ],
 
     packages = ["pendrell", "pendrell.cases", ],
     package_dir = {
@@ -47,6 +57,4 @@ core.setup(
     maintainer_email = author_email,
     )
 
-
-__id__ = """$Id$"""[5:-2]
 
