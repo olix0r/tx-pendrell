@@ -48,16 +48,18 @@ class UnauthorizedResponse(WebError):
         assert response.status == http.UNAUTHORIZED
         WebError.__init__(self, response)
 
-        authenticationValues = response.headers["www-authenticate"]
-        assert len(authenticationValues) == 1
+        auths = response.headers.get("www-authenticate")
+        if auths:
+            auth = auths[0]
+            scheme, params = auth.split(None, 1)
+            self.scheme = scheme = scheme.upper()
+            paramList = self.headerRegex.findall(params)
 
-        authentication = authenticationValues[0]
-        scheme, params = authentication.split(None, 1)
-
-        self.scheme = scheme = scheme.upper()
-
-        paramList = self.headerRegex.findall(params)
-        assert paramList
+        else:
+            # It's possible, though unlikely, that there was no WWW-Authenticate
+            # header.  In that case we use a None scheme.
+            self.scheme = None
+            paramList = {}
 
         self.params = params = dict(paramList)
         self.params["method"] = response.method
