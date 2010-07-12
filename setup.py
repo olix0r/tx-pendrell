@@ -2,7 +2,10 @@
 
 assert __name__ == "__main__", "I don't think you want to import this..."
 
-from distutils import core
+try:
+    from setuptools import setup
+except:
+    from distutils.core import setup
 
 
 def getReadme(path="README"):
@@ -21,10 +24,10 @@ def getVersion():
     return ns
 
 pkgVer = getVersion()
-author, author_email = pkgVer["author"].rsplit(None, 1)
+author, author_email = ("Oliver Gould", "ver@olix0r.net")
 
 
-core.setup(
+setup(
     name = pkgVer["version"].package.replace(".", "_"),
     version = pkgVer["version"].short(),
 
@@ -36,10 +39,10 @@ core.setup(
     classifiers = [
         "Development Status :: 4 - Beta",
         "Environment :: Web Environment",
+        "Framework :: Twisted",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python",
-        "Topic :: Communications :: WWW",
+        "Topic :: Internet :: WWW/HTTP",
         ],
 
     packages = ["pendrell", "pendrell.cases", ],
