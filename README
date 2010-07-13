@@ -1,5 +1,5 @@
-  Pendrell:  A Twisted HTTP/1.1 User Agent for the Programmatic Web
-  -----------------------------------------------------------------
+Pendrell:  A Twisted HTTP/1.1 User Agent for the Programmatic Web
+-----------------------------------------------------------------
 
 Pendrell augments the twisted.web framework with an HTTP 1client that has
 several advantages over prior art (or at least urllib2 and twisted.web.client):
