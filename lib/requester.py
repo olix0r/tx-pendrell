@@ -346,9 +346,9 @@ class HTTPSRequester(HTTPRequester):
         self._context =  ssl.ClientContextFactory()
 
 
-    def connect(self, host, port):
-        log.debug("Connecting over SSL to %s:%s" % (host, port))
-        reactor.connectSSL(host, port, self, self._context)
+    def connect(self):
+        log.debug("Connecting over SSL to %s:%s" % (self.host, self.port))
+        reactor.connectSSL(self.host, self.port, self, self._context)
 
 
 
