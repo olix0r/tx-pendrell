@@ -1,11 +1,10 @@
 from twisted.internet.defer import DeferredList, inlineCallbacks, returnValue
+from twisted.python import log
 from twisted.trial.unittest import TestCase
 
-from jersey import log
-from jersey.pendrell import messages
-from jersey.pendrell.cases.junk_server import JunkSiteTestMixin
-from jersey.pendrell.cases.util import PendrellTestMixin
-
+from pendrell import messages
+from pendrell.cases.junk_server import JunkSiteTestMixin
+from pendrell.cases.util import PendrellTestMixin
 
 
 class _Response(messages.Response):
