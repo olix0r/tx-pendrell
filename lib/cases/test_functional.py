@@ -190,9 +190,7 @@ class RequestTest(PendrellTestMixin, TestCase):
     @inlineCallbacks
     def test_request_query(self):
         response = yield self.getPage(self._baseURL+"/?whatup=notmuch#morefun")
-        self.assertEquals([("GET", "/?whatup=notmuch#morefun", "HTTP/1.1"),],
+        self.assertEquals([("GET", "/?whatup=notmuch", "HTTP/1.1"),],
                 self.site.journal)
- 
-    test_request_query.todo = "bug reported by kkszysiu (@github)"
 
 

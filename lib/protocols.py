@@ -1,6 +1,7 @@
 from struct import calcsize, pack, unpack, error as UnpackError
 
 from socket import inet_aton, inet_ntoa
+from urlparse import urlunsplit
 
 from twisted.internet import (error as netErr,
         interfaces as netInterfaces, protocol, reactor)
@@ -14,7 +15,7 @@ from pendrell.decoders import ChunkingIncrementalDecoder, getIncrementalDecoder
 from pendrell.error import (IncompleteResponse, RedirectedResponse,
         ResponseTimeout, RetryResponse, UnauthorizedResponse, WebError,
         FailableMixin)
-from pendrell.util import CRLF
+from pendrell.util import URLPath, CRLF
 
 
 OKAY_CODES= range(200, 300)
@@ -124,8 +125,13 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
         self._pendingResponses.append(response)
 
 
+    def _urlToRequestString(self, url):
+        return urlunsplit((None, None, url.path, url.query, None))
+
+
     def sendCommand(self, request):
-        command = "%s %s HTTP/1.1%s" % (request.method, request.path, CRLF)
+        path = self._urlToRequestString(request.url)
+        command = "%s %s HTTP/1.1%s" % (request.method, path, CRLF)
 
         log.debug("sending: %r" % command)
         self.transport.write(command)
