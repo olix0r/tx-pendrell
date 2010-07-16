@@ -30,7 +30,7 @@ class LoggingTransport(object):
     
 
 
-class Request(server.Request):
+class JournalingRequest(server.Request):
     """Ensures that requests on a channel are not processed concurrently.
     Otherwise generating large data can fill memory.
     """
@@ -38,6 +38,7 @@ class Request(server.Request):
     def __init__(self, *args, **kw):
         self._queued = None
         self.__transport = None
+        self.journal = kw.pop("journal", [])
         server.Request.__init__(self, *args, **kw)
         
         self.transport = LoggingTransport(self.transport)
@@ -79,8 +80,20 @@ class Request(server.Request):
         return server.Request.write(self, data)
 
 
+    def requestReceived(self, *req):
+        server.Request.requestReceived(self, *req)
+        self.journal.append(req)
+
 
 class Site(server.Site):
-    requestFactory = Request
+
+    def __init__(self, resource):
+        server.Site.__init__(self, resource)
+        self.journal = []
+
+    def requestFactory(self, *args, **kw):
+        kw.setdefault("journal", self.journal)
+        return JournalingRequest(*args, **kw)
+
 
 

@@ -3,6 +3,7 @@ import os
 from twisted.internet import error as netErr, protocol, reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.trial.unittest import TestCase
+from twisted.web.resource import Resource as _Resource
 
 from pendrell import log
 from pendrell import error
@@ -145,5 +146,53 @@ class MD5Test(PendrellTestMixin, TestCase):
 
         self.assertTrue(invalid, "Expected invalid MD5 digest in header")
 
+
+class RequestTest(PendrellTestMixin, TestCase):
+
+    _lo0 = "127.0.0.1"
+    http_port = 8056
+    timeout = 5
+
+    @property
+    def _baseURL(self):
+        return "http://%s:%d" % (self._lo0, self.http_port)
+
+
+    class Resource(_Resource):
+        def __init__(self):
+            _Resource.__init__(self)
+            self.putChild("", self)
+
+        isLeaf = True
+        def render_GET(self, request):
+            return "Me encanta los tacos!\n"
+
+
+    def setUp(self):
+        PendrellTestMixin.setUp(self)
+        self.site = Site(self.Resource())
+        self.server = reactor.listenTCP(self.http_port, self.site,
+                interface=self._lo0)
+
+
+    @inlineCallbacks
+    def tearDown(self):
+        yield PendrellTestMixin.tearDown(self)
+        yield self.server.stopListening()
+
+
+    @inlineCallbacks
+    def test_request_root(self):
+        response = yield self.getPage(self._baseURL+"/")
+        self.assertEquals([("GET", "/", "HTTP/1.1"),], self.site.journal)
+        
+
+    @inlineCallbacks
+    def test_request_query(self):
+        response = yield self.getPage(self._baseURL+"/?whatup=notmuch#morefun")
+        self.assertEquals([("GET", "/?whatup=notmuch#morefun", "HTTP/1.1"),],
+                self.site.journal)
+ 
+    test_request_query.todo = "bug reported by kkszysiu (@github)"
 
 
