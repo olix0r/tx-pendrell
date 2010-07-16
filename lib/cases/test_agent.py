@@ -22,7 +22,6 @@ from zope.interface import Interface, Attribute, implements
 
 from pendrell import log
 from pendrell import agent as pendrell, auth, error, messages
-from pendrell.cases.md5_server import MD5Site
 from pendrell.cases.util import PendrellTestMixin, trialIsOnline
 
 setDeferredDebugging(True)

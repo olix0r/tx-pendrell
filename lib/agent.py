@@ -28,7 +28,7 @@ from twisted.internet import (error as netErr,
 from twisted.internet.defer import (
         Deferred, DeferredList,
         maybeDeferred, inlineCallbacks, returnValue)
-from twisted.python import failure, urlpath, util
+from twisted.python import failure, util
 from twisted.web import client as webClient, http
 parseUrl = webClient._parse
 

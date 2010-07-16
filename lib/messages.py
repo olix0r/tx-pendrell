@@ -435,5 +435,3 @@ class Request(Message, urllib2_Request):
 
 
 
-__id__ = "$Id: $"[5:-2]
-
