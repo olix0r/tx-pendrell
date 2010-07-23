@@ -29,7 +29,7 @@ author, author_email = ("Oliver Gould", "ver@olix0r.net")
 
 setup(
     name = pkgVer["version"].package.replace(".", "_"),
-    version = pkgVer["version"].short() + "a2",
+    version = pkgVer["version"].short() + "a3",
 
     description = "An HTTP 1.1 user agent for the programming web.",
     long_description = getReadme(),
