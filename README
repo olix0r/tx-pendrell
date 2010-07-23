@@ -21,8 +21,8 @@ Changelog
 
 Version 0.3.0
   * Allow multiple Authenticators to be installed into Agent.authenticators.
-  * Modify errors.UnauthorizedError to handle multiple WWW-Authenticate header
-    values.
+  * Modify errors.UnauthorizedResponse to handle multiple WWW-Authenticate
+    header values.
 
 
 License
