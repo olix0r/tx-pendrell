@@ -42,28 +42,24 @@ class RedirectedResponse(webErr.PageRedirect, WebError):
 
 class UnauthorizedResponse(WebError):
 
-    headerRegex = re.compile("([a-z]+)=\"([^\"]+)\"(?:, |$)", re.IGNORECASE)
-
     def __init__(self, response):
         assert response.status == http.UNAUTHORIZED
         WebError.__init__(self, response)
 
-        auths = response.headers.get("www-authenticate")
-        if auths:
-            auth = auths[0]
-            scheme, params = auth.split(None, 1)
-            self.scheme = scheme = scheme.upper()
-            paramList = self.headerRegex.findall(params)
+        self.challenges = []
+        for auth in response.headers.get("www-authenticate", []):
+            a = self._parseWWWAuthenticator(auth)
+            self.challenges.append(a)
 
-        else:
-            # It's possible, though unlikely, that there was no WWW-Authenticate
-            # header.  In that case we use a None scheme.
-            self.scheme = None
-            paramList = {}
 
-        self.params = params = dict(paramList)
-        self.params["method"] = response.method
-        self.params["uri"] = response.request.path
+    _headerRegex = re.compile("([a-z]+)=\"([^\"]+)\"(?:, |$)", re.IGNORECASE)
+
+    def _parseWWWAuthenticator(self, header):
+        scheme, paramStr = header.split(None, 1)
+        params = dict(self._headerRegex.findall(paramStr))
+        params["method"] = self.response.method
+        params["uri"] = self.response.request.path
+        return (scheme, params)
 
 
 

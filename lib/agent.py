@@ -8,15 +8,7 @@ The convenience subroutines, getPage() and downloadPage() are provided to be
 compatible, or at least similar to, twisted's interface.
 
 TODO
-  - Add Proxy support to Agent.open()
-    - Make Requester an interface rather than a type.
-    - HTTP
-    - SOCKS 4a
-    - SOCKS 5
-    - Proxy Auto-Config (PAC) [http://code.google.com/p/pacparser/]
-  - Finalize API and complete documentation
-  - Constrain redirect loops.
-  - Implement timeouts.
+  - Proxy Auto-Config (PAC) [http://code.google.com/p/pacparser/]
   - Provide a subclass of RobotParser that uses this interface.
 """
 
@@ -122,6 +114,7 @@ class Agent(object):
         """Constructor.
         
         Keyword Arguments:
+            authenticators -- A list of IAuthenticators [default: []]
             cookieJar -- [default: cookielib.CookieJar()]
             followRedirect --  [default: True]
             identifier --  [default: self.identifier]
@@ -134,6 +127,8 @@ class Agent(object):
         """
         self.secure = kw.pop("secure", False)
         self.identifier = kw.pop("identifier", self.identifier)
+
+        self.authenticators = kw.pop("authenticators", [])
 
         if "followRedirect" in kw:
             self.followRedirect = kw["followRedirect"]
@@ -166,8 +161,9 @@ class Agent(object):
         self.cleanup()
 
     @inlineCallbacks
-    def open(self, request, authenticator=None, followRedirect=None,
-            proxy=None, _redirectCount=0, **kw):
+    def open(self, request, authenticator=None, authenticators=None,
+            followRedirect=None, proxy=None, _redirectCount=0, _unauthCount=0,
+            **kw):
         """Setup and issue a request.
 
         Arguments:
@@ -217,32 +213,24 @@ class Agent(object):
             log.msg("Redirected to %r" % response)
 
         except UnauthorizedResponse, ur:
-            if self._supportedAuthenticationScheme(ur.scheme, authenticator):
-                if not self._isSecureRequest(requester, authenticator):
-                    raise InsecureAuthentication(ur.response, authenticator)
+            if _unauthCount == self.maxRedirects:
+                raise
 
-                try:
-                    auth = yield maybeDeferred(
-                            authenticator.authorize, ur.scheme, **ur.params
-                            )
-                except:
-                    log.err()
-                    raise ur
-                if not auth:
-                    raise ur
-                log.msg("Built authentication for %r: %r" % (request, auth))
+            authers = authenticators or self.authenticators[:]
+            if authenticator:
+                authers.insert(0, authenticator)
+            authenticated = yield self.authorizeRequest(ur, request, authers)
+            # N.b. all tried invalid/exhuasted authenticators have been popped
+            # from authers
 
-                authenticated = self._buildAuthenticatedRequest(request, auth)
-                log.msg("Authenticating with: %r" % authenticated)
-                response = yield self.open(authenticated,
-                        followRedirect = followRedirect,
-                        proxy = proxy,
-                        _redirectCount = _redirectCount+1,
-                        **kw)
-
-            else:
-                log.msg("No {0} authenticator installed.".format(ur.scheme))
-                raise ur
+            log.msg("Authenticating with: %r" % authenticated)
+            response = yield self.open(authenticated,
+                    followRedirect = followRedirect,
+                    proxy = proxy,
+                    _redirectCount = _redirectCount+1,
+                    authenticators = authers,
+                    _unauthCount = _unauthCount+1,
+                    **kw)
 
         else:
             log.msg("%r: response for %r: %r" % (self, request, response))
@@ -252,16 +240,43 @@ class Agent(object):
         returnValue(response)
 
 
+    @inlineCallbacks
+    def authorizeRequest(self, unauth, request, authenticators):
+        authorization = yield self.getAuthorization(unauth, authenticators)
+        log.msg("Built authoriation for %r: %r" % (request, authorization))
+        authenticated = self._buildAuthenticatedRequest(request, authorization)
+        returnValue(authenticated)
+
+
+    @inlineCallbacks
+    def getAuthorization(self, unauth, authenticators):
+        authenticators = authenticators[:]
+        authorization = None
+        while authenticators and authorization is None:
+            authenticator = authenticators.pop(0)
+            for scheme, params in unauth.challenges:
+                if self._supportedAuthenticationScheme(scheme, authenticator):
+                    log.debug("Authenticating with %r for schem %s" %
+                            (authenticator, scheme))
+                    try:
+                        authorization = yield maybeDeferred(
+                                authenticator.authorize, scheme, **params)
+                    except Exception, e:
+                        log.debug(e)
+                else:
+                    log.debug("Authenticator %r does not support scheme %s" %
+                            (authenticator, scheme))
+        if not authorization:
+            raise unauth
+        returnValue(authorization)
+
+
     def _supportedAuthenticationScheme(self, scheme, authenticator):
         if authenticator:
             schemes = authenticator.schemes
-            log.debug("Supported auth schemes: {0}".format(", ".join(schemes)))
             for s in schemes:
                 if s.upper() == scheme.upper():
                     return True
-            log.debug("Unsupported auth scheme: {0}".format(scheme))
-        else:
-            log.debug("No authenticator installed")
         return False
 
 
