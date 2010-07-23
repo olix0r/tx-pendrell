@@ -1,16 +1,20 @@
-Pendrell:  A Twisted HTTP/1.1 User Agent for the Programmatic Web
------------------------------------------------------------------
+Pendrell:  Twisted HTTP/1.1 User Agent for the Programmable Web
+---------------------------------------------------------------
 
 Pendrell augments the twisted.web framework with an HTTP 1client that has
 several advantages over prior art (or at least urllib2 and twisted.web.client):
 
   * HTTP 1.1 support:
-    * TE/transfer-encoding support for chunked, gzip, and deflate encodings
-    * Ability to simultaneously maintain multiple persistent connections.
+
+    - TE/transfer-encoding support for chunked, gzip, and deflate encodings
+    - Ability to simultaneously maintain multiple persistent connections.
+
   * Transparent Gzip and Deflate Content-encoding support.
   * Ability to stream data, by performing call-backs with data chunks,
     alleviates the need to buffer large files.
-    * Advanced Gzip support accomdates incremental decoding of chunked streams.
+
+    - Advanced Gzip support accomdates incremental decoding of chunked streams.
+
   * Asynchronous (twisted) API.
   * Integration with cookielib, and compatibility with urllib2.Request API.
   * Proxy Support.
@@ -25,6 +29,16 @@ Version 0.3.0
     header values.
 
 
+Contact
+-------
+
+Oliver Gould <ver at olix0r.net>
+E242 A7F8 0901 CB63 EBA9  62EA 90F1 192F 0294 0825
+
+http://pendrell.olix0r.net/
+http://github.com/olix0r/tx-pendrell
+
+
 License
 -------
 
@@ -37,8 +51,8 @@ the rights to use, copy, modify, merge, publish, distribute, sublicense,
 and/or sell copies of the Software, and to permit persons to whom the
 Software is furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

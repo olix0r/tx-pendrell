@@ -31,7 +31,7 @@ setup(
     name = pkgVer["version"].package.replace(".", "_"),
     version = pkgVer["version"].short(),
 
-    description = "An HTTP 1.1 user agent for the programming web.",
+    description = "HTTP 1.1 user agent for the programmable web",
     long_description = getReadme(),
     url = "http://pendrell.olix0r.net/",
 
