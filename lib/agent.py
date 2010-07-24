@@ -147,6 +147,7 @@ class Agent(object):
         self._cookieJar = kw.pop("cookieJar", cookielib.CookieJar())
         self._proxyer = kw.pop("proxyer", Proxyer())
         self._resolver = kw.pop("resolver", reactor.resolver)
+        self._authorizationCache = dict()
         self._requesterCache = dict()
         self._requestQueue = dict()
 
@@ -182,12 +183,15 @@ class Agent(object):
         """
         request = self.buildRequest(request, **kw)
         log.debug("Opening {0}".format(request))
-        log.debug("Authenticator: {0}".format(authenticator))
 
         assert proxy is None or isinstance(proxy, Proxy)
         timeout = kw.get("timeout", self._timeout)
         if followRedirect is None:
             followRedirect = self.followRedirect
+
+        authorization = self._getCachedAuthorization(request)
+        if authorization:
+            request = self._buildAuthenticatedRequest(request, authorization)
 
         if proxy:
             request.setProxy(proxy)
@@ -205,32 +209,39 @@ class Agent(object):
             log.msg("Redirecting to %r" % (rr.location))
             response = yield self.open(
                     request.redirect(rr.location),
-                    authenticator = authenticator,
                     followRedirect = followRedirect,
                     proxy = proxy,
                     _redirectCount = _redirectCount+1,
+                    authenticator = authenticator,
+                    authenticators = authenticators,
+                    _unauthCount = _unauthCount,
                     **kw)
             log.msg("Redirected to %r" % response)
 
         except UnauthorizedResponse, ur:
+            if authorization:
+                self._invalidateAuthorization(request)
             if _unauthCount == self.maxRedirects:
                 raise
 
-            authers = authenticators or self.authenticators[:]
+            authenticators = authenticators or self.authenticators[:]
             if authenticator:
-                authers.insert(0, authenticator)
-            authenticated = yield self.authorizeRequest(ur, request, authers)
+                authenticators.insert(0, authenticator)
+
+            authorization = yield self.getAuthorization(ur, authenticators)
             # N.b. all tried invalid/exhuasted authenticators have been popped
             # from authers
 
-            log.msg("Authenticating with: %r" % authenticated)
-            response = yield self.open(authenticated,
+            request = self._buildAuthenticatedRequest(request, authorization)
+            log.msg("Authenticating with: %r" % request)
+            response = yield self.open(request,
                     followRedirect = followRedirect,
                     proxy = proxy,
-                    _redirectCount = _redirectCount+1,
-                    authenticators = authers,
+                    _redirectCount = _redirectCount,
+                    authenticators = authenticators,
                     _unauthCount = _unauthCount+1,
                     **kw)
+            self._cacheAuthorization(request, authorization)
 
         else:
             log.msg("%r: response for %r: %r" % (self, request, response))
@@ -241,14 +252,6 @@ class Agent(object):
 
 
     @inlineCallbacks
-    def authorizeRequest(self, unauth, request, authenticators):
-        authorization = yield self.getAuthorization(unauth, authenticators)
-        log.msg("Built authoriation for %r: %r" % (request, authorization))
-        authenticated = self._buildAuthenticatedRequest(request, authorization)
-        returnValue(authenticated)
-
-
-    @inlineCallbacks
     def getAuthorization(self, unauth, authenticators):
         authenticators = authenticators[:]
         authorization = None
@@ -256,8 +259,6 @@ class Agent(object):
             authenticator = authenticators.pop(0)
             for scheme, params in unauth.challenges:
                 if self._supportedAuthenticationScheme(scheme, authenticator):
-                    log.debug("Authenticating with %r for schem %s" %
-                            (authenticator, scheme))
                     try:
                         authorization = yield maybeDeferred(
                                 authenticator.authorize, scheme, **params)
@@ -266,9 +267,28 @@ class Agent(object):
                 else:
                     log.debug("Authenticator %r does not support scheme %s" %
                             (authenticator, scheme))
+
         if not authorization:
             raise unauth
+
+        self.activeAuthenticator = authenticator
+        log.debug("%r authorized for scheme %s" % (authenticator, scheme))
+
         returnValue(authorization)
+
+
+
+    def _cacheAuthorization(self, request, authorization):
+        key = self._getRequesterKey(request)
+        self._authorizationCache[key] = authorization
+
+    def _getCachedAuthorization(self, request):
+        key = self._getRequesterKey(request)
+        return self._authorizationCache.get(key)
+
+    def _invalidateAuthorization(self, request):
+        key = self._getRequesterKey(request)
+        return self._authorizationCache.pop(key)
 
 
     def _supportedAuthenticationScheme(self, scheme, authenticator):
@@ -313,7 +333,7 @@ class Agent(object):
         # Cache a new Requester
 
         elif request.proxy is not None:
-            proxy.setRemote(request.host, request.port)
+            request.proxy.setRemote(request.host, request.port)
             requester = request.proxy
             # XXX reset timeout?
 
