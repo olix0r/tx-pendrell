@@ -9,11 +9,11 @@ several advantages over prior art (or at least urllib2 and twisted.web.client):
     - TE/transfer-encoding support for chunked, gzip, and deflate encodings
     - Ability to simultaneously maintain multiple persistent connections.
 
-  * Transparent Gzip and Deflate Content-encoding support.
+  * Transparent gzip and deflate Content-encoding support.
   * Ability to stream data, by performing call-backs with data chunks,
     alleviates the need to buffer large files.
 
-    - Advanced Gzip support accomdates incremental decoding of chunked streams.
+    - Advanced gzip support accommodates incremental decoding of chunked streams.
 
   * Asynchronous (twisted) API.
   * Integration with cookielib, and compatibility with urllib2.Request API.
@@ -22,6 +22,9 @@ several advantages over prior art (or at least urllib2 and twisted.web.client):
 
 Changelog
 ---------
+
+Version 0.3.1
+  * Authorization caching eliminates unnecessary unauthorized responses.
 
 Version 0.3.0
   * Allow multiple Authenticators to be installed into Agent.authenticators.
