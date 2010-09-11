@@ -107,6 +107,9 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
 
         log.debug("%r: sent %d requests" % (self, count))
 
+        while self._pendingResponses:
+            self.handleResponseEnd()
+
 
     #
     # HTTP requesting methods 
@@ -276,26 +279,31 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
             self._contentSize += len(content)
 
         else:
-            assert self._contentLength is not None
             assert self._contentSize is not None
-            assert 0 <= self._contentSize <= self._contentLength, \
-                    "Content size (%d) is greater than content length (%d)" % \
-                    (self._contentSize, self._contentLength)
+            if self._contentLength is not None:
+                assert 0 <= self._contentSize <= self._contentLength, \
+                        "Content size (%d) is greater than content length (%d)" % \
+                        (self._contentSize, self._contentLength)
 
-            if self._contentSize + len(raw) > self._contentLength:
-                dataLen = self._contentLength - self._contentSize
-                data, raw = raw[:dataLen], raw[dataLen:]
+                if self._contentSize + len(raw) > self._contentLength:
+                    dataLen = self._contentLength - self._contentSize
+                    data, raw = raw[:dataLen], raw[dataLen:]
+                else:
+                    data, raw = raw, ""
             else:
                 data, raw = raw, ""
 
             self._contentSize += len(data)
-
             content = self._decodeData(data)
-            final = bool(self._contentSize == self._contentLength)
 
-            log.debug("Received %dB (%d/%dB)%s" % (
-                    len(data), self._contentSize, self._contentLength,
-                    " [end]" if final else ""))
+            if self._contentLength is not None:
+                final = bool(self._contentSize == self._contentLength)
+                log.debug("Received %dB (%d/%dB)%s" % (
+                        len(data), self._contentSize, self._contentLength,
+                        " [end]" if final else ""))
+            else:
+                final = False
+                log.debug("Received %dB (%d/?)" % (len(data), self._contentSize))
 
         return (content, final, raw)
 
