@@ -149,6 +149,7 @@ class Agent(object):
         self._resolver = kw.pop("resolver", reactor.resolver)
         self._authorizationCache = dict()
         self._requesterCache = dict()
+        self._requesterCacheOrder = []
         self._requestQueue = dict()
 
 
@@ -322,15 +323,12 @@ class Agent(object):
         log.msg("Loading requester for: %s" % key, logLevel=log.DEBUG)
 
         if key in self._requesterCache:
+            # Reset order
+            self._requesterCacheOrder.remove(key)
+            self._requesterCacheOrder.insert(0, key)
             requester = self._requesterCache[key]
             log.msg("requester retrieved from cache: %s" % requester,
                     logLevel=log.DEBUG)
-
-        elif len(self._requesterCache) == self.maxConnections:
-            log.msg("cannot add %s: cache full" % request, logLevel=log.DEBUG)
-            raise TooManyConnections(key)
-
-        # Cache a new Requester
 
         elif request.proxy is not None:
             request.proxy.setRemote(request.host, request.port)
@@ -338,6 +336,10 @@ class Agent(object):
             # XXX reset timeout?
 
         else:
+            if len(self._requesterCache) == self.maxConnections:
+                killKey = self._requesterCacheOrder.pop()
+                self._requesterCache.pop(killKey)
+
             if self._proxyer:
                 proxy = self._proxyer.getRequester(request)
             else:
@@ -354,9 +356,7 @@ class Agent(object):
                 requester = self._buildRequester(request, **kw)
                 log.msg("%r caching %r" % (self, requester), logLevel=log.DEBUG)
                 self._requesterCache[key] = requester
-
-        log.msg("Requester cache: %s" % ", ".join(self._requesterCache.keys()),
-                logLevel=log.DEBUG) 
+            self._requesterCacheOrder.insert(0, key)
 
         return requester
 

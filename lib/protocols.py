@@ -76,14 +76,6 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
     def timeoutConnection(self):
         log.debug("%r: connection timeout" % self)
         self.timedOut = True
-
-        if self._pendingResponses:
-            log.debug("%r: timing out response: %r" % (self,
-                    self._currentResponse))
-            self._currentResponse.request.response.errback(netErr.TimeoutError())
-        else:
-            log.debug("%r: No current response to time out ;(" % self)
-
         return policies.TimeoutMixin.timeoutConnection(self)
 
 
@@ -347,6 +339,7 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
 
         if self.timedOut:
             log.debug(logFmt % "timed-out")
+            response.status = http.REQUEST_TIMEOUT
             responseValue = ResponseTimeout.Failure(response, self.timedOut)
 
         elif response.status in REDIRECT_CODES:

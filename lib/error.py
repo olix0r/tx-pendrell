@@ -24,7 +24,7 @@ class FailableMixin:
 class WebError(webErr.Error, FailableMixin):
 
     def __init__(self, response):
-        webErr.Error.__init__(self, response.status,
+        webErr.Error.__init__(self, response.status or 0,
                 message=response.message,
                 response=response)
 
