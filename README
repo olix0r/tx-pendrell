@@ -23,6 +23,13 @@ several advantages over prior art (or at least urllib2 and twisted.web.client):
 Changelog
 ---------
 
+Version 0.3.3
+  * LRU requester cache cleanup.
+
+Version 0.3.2
+  * Support servers that neither provide a content-length nor use chunked
+    encoding.
+
 Version 0.3.1
   * Authorization caching eliminates unnecessary unauthorized responses.
 
