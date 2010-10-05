@@ -8,7 +8,7 @@ except:
     from distutils.core import setup
 
 
-def getReadme(path="README"):
+def getReadme(path="README.rst"):
     f = open(path)
     try:
         return f.read()
