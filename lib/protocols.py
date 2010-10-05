@@ -61,14 +61,12 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
 
 
     def connectionMade(self):
-        log.debug("%r: connected" % self)
         self._connected = True
         basic.LineReceiver.connectionMade(self)
         self.sendRequests()
 
 
     def connectionLost(self, reason):
-        log.debug("%r: connection lost: %r" % (self, reason))
         self._connected = False
         return basic.LineReceiver.connectionLost(self, reason)
 
@@ -81,23 +79,15 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
 
     @inlineCallbacks
     def sendRequests(self):
-        count = 0
         connected = True
 
         while connected:
             try:
-                log.debug("%r: connected and waiting for request." % self)
-
                 request = yield self.factory.getNextRequest()
                 self.sendRequest(request)
 
-                count += 1
-                log.debug("%r: sent request: %r" % (self, request))
-
             except (netErr.ConnectionLost, netErr.ConnectionDone) :
                 connected = False
-
-        log.debug("%r: sent %d requests" % (self, count))
 
         while self._pendingResponses:
             self.handleResponseEnd()
@@ -127,29 +117,19 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
     def sendCommand(self, request):
         path = self._urlToRequestString(request.url)
         command = "%s %s HTTP/1.1%s" % (request.method, path, CRLF)
-
-        log.debug("sending: %r" % command)
         self.transport.write(command)
 
 
     def sendHeaders(self, request):
         for name, value in request.headers.iteritems():
             header = "%s: %s%s" % (name, value, CRLF)
-
-            log.msg("sending: %r" % header)
             self.transport.write(header)
-
-        log.msg("sending: %r" % CRLF)
         self.transport.write(CRLF)    
 
     
     def sendContent(self, request):
         content = request.data
         if content:
-            if request.method is not "POST":
-                log.warn("Sending content with a %s request." % request.method)
-
-            log.debug("Sending content: %r" % content)
             self.transport.write(content)
 
 
@@ -158,7 +138,6 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
     #
 
     def lineReceived(self, line):
-        log.debug("Receiving line: %r" % line)
         assert self._pendingResponses
 
         if line == "":
@@ -223,7 +202,6 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
         if "content-length" in self._currentResponse.headers:
             length = self._currentResponse.headers["content-length"][-1]
             self._contentLength = int(length)
-        log.debug("Content length: %r" % self._contentLength)
 
 
     def _currentResponseHasContent(self):
@@ -257,9 +235,6 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
     def _processContent(self, raw):
         if self._chunkDecoder:
             data = self._chunkDecoder.decode(raw)
-            log.debug("De-chunked %dB (%dB)%s" % (len(data), self._contentSize,
-                    " [end]" if self._chunkDecoder.finished else ""))
-
             final = self._chunkDecoder.finished
             if final:
                 raw = self._chunkDecoder.getExtra()
@@ -290,12 +265,8 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
 
             if self._contentLength is not None:
                 final = bool(self._contentSize == self._contentLength)
-                log.debug("Received %dB (%d/%dB)%s" % (
-                        len(data), self._contentSize, self._contentLength,
-                        " [end]" if final else ""))
             else:
                 final = False
-                log.debug("Received %dB (%d/?)" % (len(data), self._contentSize))
 
         return (content, final, raw)
 
@@ -314,7 +285,6 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
 
 
     def handleEndHeaders(self):
-        log.debug("%s: finished headers" % self._currentResponse)
         self._determineContentLength()
         self._loadDecoders()
 
@@ -324,7 +294,6 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
 
 
     def handleResponseEnd(self):
-        log.debug("Completing response: %r" % self._currentResponse)
         response = self._pendingResponses.pop(0)
         response.done()
 
@@ -367,7 +336,6 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
             log.debug(logFmt % "failure")
             responseValue = WebError.Failure(response)
 
-        log.debug("%r: responding with %r" % (self, responseValue))
         response.request.response.callback(responseValue)
 
 
@@ -404,17 +372,8 @@ class SOCKSv4ClientProtocol(protocol.Protocol):
 
     @inlineCallbacks
     def openConnection(self, host, port, user=""):
-        log.debug("%r: Opening a SOCKSv4 connection to %s%s:%d" %
-                (self, "%s@" % user if user else "", host, port))
-
         hostIP = yield reactor.resolve(host)
         server = inet_aton(hostIP)
-
-        log.debug("version: %r" % self._VERSION_CODE)
-        log.debug("command: %r" % self._CONNECT_CODE)
-        log.debug("server: %r" % hostIP)
-        log.debug("port: %d" % port)
-        log.debug("user: %r" % user)
 
         packed = pack("!BBH", self._VERSION_CODE, self._CONNECT_CODE, port)
         packed += inet_aton(hostIP)
@@ -456,7 +415,6 @@ class SOCKSv4ClientProtocol(protocol.Protocol):
     def _parseData(self, data):
         replyFmt = "!BBH"
         dataLen = len(data)
-        log.msg("%s: received %d bytes" % (self.__class__.__name__, dataLen))
 
         replyLen = calcsize(replyFmt) + 4
         if dataLen != replyLen:
@@ -481,20 +439,10 @@ class SOCKSv4aClientProtocol(SOCKSv4ClientProtocol):
     def openConnection(self, host, port, user=""):
         """Allows the proxy to perform DNS lookup.
         """
-        log.debug("%s: Opening a SOCKSv4a connection to %s%s:%d" % (
-                self.__class__.__name__,
-                "%s@" % user if user else "", host, port))
-
         version = self._VERSION_CODE
         command = self._CONNECT_CODE
         server = inet_aton(self._INVALID_SERVER)
         domain = host
-
-        log.debug("version: %r" % version)
-        log.debug("command: %r" % command)
-        log.debug("server: %r" % inet_ntoa(server))
-        log.debug("user: %r" % user + "\000")
-        log.debug("domain: %r" % domain + "\000")
 
         packed = pack("!BBH", version, command, port) \
                + server \

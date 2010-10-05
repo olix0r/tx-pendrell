@@ -16,7 +16,6 @@ TODO
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.python import failure
 
-from pendrell import log
 from pendrell.protocols import (
         HTTPProtocol,
         SOCKSv4ClientProtocol,
@@ -62,7 +61,6 @@ class HTTPProxyProtocol(HTTPProtocol):
 
     def sendCommand(self, request):
         command = "%s %s HTTP/1.1%s" % (request.method, request.url, CRLF)
-        log.msg("sending: %r" % command, logLevel=log.TRACE)
         self.transport.write(command)
 
 
@@ -101,12 +99,8 @@ class SOCKSProxyProtocolBase(object):
 
     @inlineCallbacks
     def openConnection(self, server, port, user=""):
-        log.msg("Opening SOCKS-tunnel to %s:%d" % (server, port))
         conn = yield self.socksClass.openConnection(self, server, port, user)
-        log.msg("socks connected: %s:%d" % (server, port))
-
         self._tunneled = True
-
         returnValue(conn)
 
 

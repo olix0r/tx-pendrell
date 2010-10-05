@@ -2,7 +2,7 @@ from codecs import getincrementaldecoder as _getincrementaldecoder
 from struct import calcsize, unpack, unpack_from, error as UnpackError
 import gzip, zlib
 
-from twisted.python import log, urlpath, util
+from twisted.python import urlpath, util
 
 from pendrell import log
 from pendrell.util import CRLF
@@ -72,11 +72,6 @@ class ZlibIncrementalDecoder(_ZlibIncrementalDecoder):
             )
         self.decompressobj = None
 
-    @classmethod
-    def _log(klass, *args, **kw):
-        kw["system"] = str(klass.__name__)
-        log.msg(*args, **kw)
-
 
     def decode(self, input, final=False):
         decompressers = list(self.decompressers)
@@ -92,8 +87,6 @@ class ZlibIncrementalDecoder(_ZlibIncrementalDecoder):
             else:
                 self.__decompresser = decompresser
 
-        for d, e in errors:
-            self._log("%r: %s" % (d, e.args[0]), logLevel=log.ERROR)
         if decoded is None:
             raise ze
 
@@ -131,8 +124,6 @@ class GzipIncrementalDecoder(ZlibIncrementalDecoder):
 
 
     def decode(self, data, final=False):
-        self._log("data: %d + %d" % (len(data), len(self._buffer)))
-
         data = self._buffer + data
         dataLen = len(data)
         self._buffer = None
@@ -147,10 +138,8 @@ class GzipIncrementalDecoder(ZlibIncrementalDecoder):
 
             else:
                 self._readGzipHeader = True
-                self._log("gzip header: %d" % headerLen)
                 data = data[headerLen:]
                 dataLen -= headerLen
-                self._log("data without header: %d" % dataLen)
 
         if self._readGzipHeader and dataLen > self._footerLen:
             data, footer = data[:dataLen], data[dataLen:]
@@ -162,9 +151,6 @@ class GzipIncrementalDecoder(ZlibIncrementalDecoder):
 
             footer = self.decompressobj.unused_data + footer
             if final:
-                self._log("finalizing %d bytes" % len(footer),
-                          logLevel=log.DEBUG)
-
                 ((crc, size), _) = self._decodeFooterValues(footer)
                 if not crc == self._crc:
                     raise IOError("CRC check failed")
@@ -287,8 +273,6 @@ class ChunkingIncrementalDecoder(object):
 
 
     def reset(self):
-        log.msg("Resetting %r" % self)
-
         self._buffer = str()
         self._chunkCount = long()
         self._chunk = None
@@ -319,8 +303,6 @@ class ChunkingIncrementalDecoder(object):
                 else:
                     content += chunk.content
                     self._decodedLength += chunk.length
-                    log.debug("Decoded %dB/%dB" % (
-                            chunk.length, self._decodedLength))
 
                 self._buffer = raw
                 self._chunkCount += 1

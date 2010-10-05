@@ -8,7 +8,6 @@ from twisted.internet.error import ConnectionDone
 from twisted.internet.protocol import ClientFactory as _ClientFactory
 from zope.interface import Attribute, Interface, implements
 
-from pendrell import log
 from pendrell.protocols import HTTPProtocol
 
 
@@ -69,12 +68,7 @@ class Multiplexer(object):
 
     @inlineCallbacks
     def issueRequest(self, request):
-        log.debug("%r: queueing request: %r" % (self, request))
-
-        log.debug("Waiting for a requester to become available.")
         requester = yield self._waitForAvailableRequester()
-        log.debug("Issuing request to a requester that became available.")
-
         response = yield requester.issueRequest(request)
         returnValue(response)
 
@@ -83,17 +77,14 @@ class Multiplexer(object):
     def _waitForAvailableRequester(self):
         available = self.getAvailableRequesters()
         if available:
-            log.debug("Using inactive requester.")
             requester = available[0]
 
         elif self.maxConnections is None \
                 or len(self._requesters) < self.maxConnections:
             requester = self.buildRequester()
             self._requesters.append(requester)
-            log.debug("Using a new requester [%d]." % len(self._requesters))
 
         else:
-            log.debug("Waiting for an available requester.")
             assert self.maxConnections is None \
                     or len(self._requesters) == self.maxConnections
             requester = self._requesters[0]  # Start with arbitrary requester...
@@ -101,7 +92,6 @@ class Multiplexer(object):
                 availability = map(lambda r: r.waitForAvailability(),
                         self._requesters)
                 requester, idx = yield DeferredList(availability, fireOnOneCallback=True)
-            log.debug("Requester ready: [%r] %r" % (idx, requester))
 
         returnValue(requester)
 
@@ -154,7 +144,6 @@ class RequesterBase(_ClientFactory):
 
         # Buffer requests until the connection is made.  Once connected,
         # send requests to the server.
-        log.debug("%r: queueing request: %r" % (self, request))
         self._requestQueue.append(request)
 
         # Otherwise, queue the request and initiate a connection.
@@ -166,13 +155,10 @@ class RequesterBase(_ClientFactory):
         # If a connected protocol is waiting for a request, issue it
         # (after the execution chain terminates).
         if self._nextRequest:
-            log.debug("%r: firing nextRequest: %r" % (self, request))
             reactor.callLater(0, self._nextRequest.callback, request)
             self._nextRequest = None
 
-        log.debug("%r: waiting for response to: %r" % (self, request))
         response = yield request.response
-        log.debug("%r: got response: %r" % (self, response))
 
         returnValue(response)
 
@@ -186,11 +172,9 @@ class RequesterBase(_ClientFactory):
     @inlineCallbacks
     def getNextRequest(self):
         if len(self._requestQueue) == 0:
-            log.debug("%r: request queue is empty: waiting" % (self))
             yield self._waitForRequest()
 
         request = self._requestQueue.pop(0)
-        log.debug("%r: dequeueing request: %r" % (self, request))
 
         self._watchResponseFor(request)
 
@@ -212,21 +196,16 @@ class RequesterBase(_ClientFactory):
 
         self._pendingResponseCount += 1
         try:
-            log.debug("%r: waiting for response to: %r" % (self, request))
             response = yield request.response
-            log.debug("%r: got response: %r" % (self, response))
 
         finally:
             assert self._pendingResponseCount > 0
             self._pendingResponseCount -= 1
 
             if not self.active:
-                log.debug("Requester became inactive.")
                 if self._availability is not None:
                     a, self._availability = self._availability, None
                     a.callback(self)
-            else:
-                log.debug("Waiting for %d responses" % self._pendingResponseCount)
 
         returnValue(response)
 
@@ -241,8 +220,6 @@ class RequesterBase(_ClientFactory):
 
 
     def connect(self):
-        log.debug("%r: connecting over TCP to %s:%s" % (self,
-                self.host, self.port))
         assert self.disconnected
         return reactor.connectTCP(self.host, self.port, self)
 
@@ -255,20 +232,17 @@ class RequesterBase(_ClientFactory):
         proto.port = self.port
 
         if self.timeout is not None:
-            log.debug("%r: setting timeout to: %d" % (self, self.timeout))
             proto.setTimeout(self.timeout)
 
         return proto
 
 
     def startedConnecting(self, connector):
-        log.debug("%r: started connecting" % self)
         self._connector = connector
 
 
     def clientConnectionLost(self, connector, reason):
         """Called when an established connection is lost."""
-        log.debug("%r: connection lost: %s" % (self, reason.getErrorMessage()))
         if self._connectionLost:
             self._connectionLost.callback(True)
             self._connectionLost = None
@@ -276,8 +250,6 @@ class RequesterBase(_ClientFactory):
         if self._nextRequest:
             self._nextRequest.errback(reason)
             self._nextRequest = None
-        else:
-            log.debug("Odd. the client is waiting on a request from %r" % self)
 
         if reason.check(ConnectionDone):
             self._reconnectIfRequestsQueued(connector)
@@ -286,7 +258,6 @@ class RequesterBase(_ClientFactory):
 
 
     def clientConnectionFailed(self, connector, reason):
-        log.debug("%r: connection failed: %s" % (self, reason.getErrorMessage()))
         assert self._nextRequest is None
 
         #self._reconnectIfRequestsQueued(connector)
@@ -303,8 +274,6 @@ class RequesterBase(_ClientFactory):
 
 
     def _failQueuedRequests(self, reason):
-        log.debug("%r: Failing %d queued requests." % (
-                  self, len(self._requestQueue)))
         while self._requestQueue:
             self._requestQueue.pop(0).response.errback(reason)
 
@@ -313,7 +282,6 @@ class RequesterBase(_ClientFactory):
         # TODO Limit number of retries
         count = len(self._requestQueue)
         if count > 0:
-            log.msg("%r: reconnecting to issue %d requests" % (self, count))
             connector.connect()
 
 

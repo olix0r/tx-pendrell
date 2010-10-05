@@ -11,7 +11,6 @@ except ImportError:
 from twisted.internet import defer
 from twisted.python import util
 
-from pendrell import log
 from pendrell.decoders import loadDecoders
 from pendrell.error import MD5Mismatch
 from pendrell.proxy import Proxy
@@ -100,8 +99,6 @@ class Response(Message):
                 message = response.message,
             )
         kw.update(kwArgs)
-        log.debug("Creating response from response: %r" % kw)
-
         request = kw.pop("request")
         url = kw.pop("url")
         return klass(request, url, **kw)
@@ -178,13 +175,8 @@ class Response(Message):
     def decodeData(self, data):
         origLen = len(data)
         final = bool(origLen == 0)
-
         for decoder in self.decoders:
             data = decoder.decode(data, final)
-
-        if origLen != len(data):
-            log.debug("Decoded content from %dB to %dB" % (origLen, len(data)))
-
         return data
 
 
@@ -286,11 +278,9 @@ class FileResponse(StreamResponse):
                 self.url, self.filePath)
 
     def __del__(self):
-        log.debug("%s.__del__()" % self.__class__.__name__)
         self.stream.close()
 
     def done(self):
-        log.debug("%s.done()" % self.__class__.__name__)
         self.stream.close()
 
 
@@ -347,8 +337,6 @@ class Request(Message, urllib2_Request):
                 url = request.url,
             )
         kw.update(kwArgs)
-        log.debug("Creating request from request: %r" % kw)
-
         url = kw.pop("url")
         return klass(url, **kw)
 
@@ -390,7 +378,6 @@ class Request(Message, urllib2_Request):
             klass = self.responseClass if self.responseClass else Response
             response = klass(self, self.url, self.method)
 
-        log.debug("%r: built response: %r" % (self, response))
         return response
 
 

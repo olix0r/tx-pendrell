@@ -2,7 +2,6 @@ import hashlib
 
 from twisted.internet.defer import maybeDeferred
 from zope.interface import Interface, Attribute, implements
-from pendrell import log
 
 
 class IAuthenticator(Interface):
@@ -57,8 +56,6 @@ class DigestAuthenticator(UserPassAuthenticatorBase):
                 uri --  URI of the requested resource.
                 nonce --  Server-provided nonce value.
         """
-        log.debug("Beginning digest auth: {0!r}".format(params))
-
         algorithm = params.get("algorithm", self.defaultAlgorithm).lower()
         realm = params["realm"]
         method = params["method"]

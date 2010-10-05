@@ -183,7 +183,6 @@ class Agent(object):
             self.requestClass.
         """
         request = self.buildRequest(request, **kw)
-        log.debug("Opening {0}".format(request))
 
         assert proxy is None or isinstance(proxy, Proxy)
         timeout = kw.get("timeout", self._timeout)
@@ -207,7 +206,7 @@ class Agent(object):
                     or rr.status == http.SEE_OTHER:
                 raise
 
-            log.msg("Redirecting to %r" % (rr.location))
+            log.debug("Redirecting to %r" % (rr.location))
             response = yield self.open(
                     request.redirect(rr.location),
                     followRedirect = followRedirect,
@@ -217,7 +216,6 @@ class Agent(object):
                     authenticators = authenticators,
                     _unauthCount = _unauthCount,
                     **kw)
-            log.msg("Redirected to %r" % response)
 
         except UnauthorizedResponse, ur:
             if authorization:
@@ -234,7 +232,7 @@ class Agent(object):
             # from authers
 
             request = self._buildAuthenticatedRequest(request, authorization)
-            log.msg("Authenticating with: %r" % request)
+            log.debug("Authenticating with: %r" % request)
             response = yield self.open(request,
                     followRedirect = followRedirect,
                     proxy = proxy,
@@ -245,7 +243,6 @@ class Agent(object):
             self._cacheAuthorization(request, authorization)
 
         else:
-            log.msg("%r: response for %r: %r" % (self, request, response))
             response.verifyDigest()
             self.extractCookies(response)
 
@@ -265,16 +262,11 @@ class Agent(object):
                                 authenticator.authorize, scheme, **params)
                     except Exception, e:
                         log.debug(e)
-                else:
-                    log.debug("Authenticator %r does not support scheme %s" %
-                            (authenticator, scheme))
 
         if not authorization:
             raise unauth
 
         self.activeAuthenticator = authenticator
-        log.debug("%r authorized for scheme %s" % (authenticator, scheme))
-
         returnValue(authorization)
 
 
@@ -312,7 +304,6 @@ class Agent(object):
 
 
     def extractCookies(self, response):
-        log.msg("Extracting cookies: %r" % response, logLevel=log.DEBUG)
         assert response is not None
         self._cookieJar.extract_cookies(response, response.request)
         return response
@@ -320,15 +311,11 @@ class Agent(object):
 
     def getRequester(self, request, **kw):
         key = self._getRequesterKey(request)
-        log.msg("Loading requester for: %s" % key, logLevel=log.DEBUG)
-
         if key in self._requesterCache:
             # Reset order
             self._requesterCacheOrder.remove(key)
             self._requesterCacheOrder.insert(0, key)
             requester = self._requesterCache[key]
-            log.msg("requester retrieved from cache: %s" % requester,
-                    logLevel=log.DEBUG)
 
         elif request.proxy is not None:
             request.proxy.setRemote(request.host, request.port)
@@ -346,15 +333,12 @@ class Agent(object):
                 proxy = None
 
             if proxy:
-                log.debug("%r caching proxy %r from proxier %r" % (
-                        self, proxy, self._proxyer))
                 request.setProxy(proxy)
                 proxy.setRemote(request.host, request.port)
                 requester = self._requesterCache[key] = proxy
 
             else:
                 requester = self._buildRequester(request, **kw)
-                log.msg("%r caching %r" % (self, requester), logLevel=log.DEBUG)
                 self._requesterCache[key] = requester
             self._requesterCacheOrder.insert(0, key)
 
@@ -366,7 +350,6 @@ class Agent(object):
 
 
     def buildRequest(self, request, **kw):
-        log.msg("Building a request: %s" % request, logLevel=log.DEBUG)
         if not isinstance(request, Request):
             request = self.requestClass(str(request), **kw)
 
@@ -400,7 +383,6 @@ class Agent(object):
 
     def _buildRequester(self, request, **kw):
         scheme = request.scheme
-        log.msg("Creating a(n) %s requester" % scheme, logLevel=log.DEBUG)
 
         kw.setdefault("maxConnections", self.maxConnectionsPerSite)
 
