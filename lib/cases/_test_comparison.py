@@ -9,9 +9,7 @@ from twisted.trial.unittest import TestCase
 from twisted.web.client import getPage as tx_getPage
 
 from pendrell import log
-from pendrell.cases.test_agent import PendrellTestMixin
-from pendrell.cases._test_transfer import (TransferTestMixin,
-        XLTransferTestMixin)
+from pendrell.cases._test_transfer import TransferTestMixin
 
 
 class ThreadedUrllib2TestMixin(object):
