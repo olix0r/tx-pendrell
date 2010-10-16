@@ -336,7 +336,7 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
             log.debug(logFmt % "failure")
             responseValue = WebError.Failure(response)
 
-        response.request.response.callback(responseValue)
+        reactor.callLater(0, response.request.response.callback, responseValue)
 
 
 

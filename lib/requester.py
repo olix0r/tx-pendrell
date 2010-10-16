@@ -63,7 +63,7 @@ class Multiplexer(object):
 
 
     def getAvailableRequesters(self):
-        return filter(lambda r: not r.active, self._requesters)
+        return [r for r in self._requesters if not r.active]
 
 
     @inlineCallbacks
@@ -79,31 +79,25 @@ class Multiplexer(object):
         if available:
             requester = available[0]
 
-        elif self.maxConnections is None \
-                or len(self._requesters) < self.maxConnections:
+        elif (self.maxConnections is None
+                or len(self._requesters) < self.maxConnections):
             requester = self.buildRequester()
             self._requesters.append(requester)
 
         else:
-            assert self.maxConnections is None \
-                    or len(self._requesters) == self.maxConnections
-            requester = self._requesters[0]  # Start with arbitrary requester...
-            while requester.active:
-                availability = map(lambda r: r.waitForAvailability(),
-                        self._requesters)
-                requester, idx = yield DeferredList(availability, fireOnOneCallback=True)
+            assert (self.maxConnections is None 
+                    or len(self._requesters) == self.maxConnections)
+            requester, idx = yield DeferredList(
+                [r.waitForAvailability() for r in self._requesters],
+                fireOnOneCallback=True)
 
         returnValue(requester)
 
 
     def loseConnection(self):
-        ds = list()
-
-        for r  in self._requesters:
-            d = r.loseConnection()
-            ds.append(d)
-
-        return DeferredList(ds)
+        return DeferredList([
+            r.loseConnection() for r in self._requesters
+            ])
 
 
 
@@ -205,7 +199,7 @@ class RequesterBase(_ClientFactory):
             if not self.active:
                 if self._availability is not None:
                     a, self._availability = self._availability, None
-                    a.callback(self)
+                    reactor.callLater(0, a.callback, self)
 
         returnValue(response)
 

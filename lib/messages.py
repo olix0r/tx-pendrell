@@ -241,17 +241,6 @@ class LineResponse(Response):
 
 
 
-class BufferedResponse(Response):
-    """Response that is written to a buffer"""
-
-    def __init__(self, request, url, method="GET", headers=None, **kw):
-        Response.__init__(self, request, url, method, headers, **kw)
-        self.content = str()
-
-    def handleData(self, data):
-        self.content += data
-
-
 
 class StreamResponse(Response):
     """Response that is written to a stream"""
@@ -263,6 +252,13 @@ class StreamResponse(Response):
     def handleData(self, data):
         self.stream.write(data)
 
+
+class BufferedResponse(StreamResponse):
+    """Response that is written to a buffer"""
+
+    @property
+    def content(self):
+        return self.stream.getvalue()
 
 
 class FileResponse(StreamResponse):
