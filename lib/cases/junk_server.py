@@ -2,7 +2,7 @@ import os, math
 
 from twisted.internet import reactor
 from twisted.internet.defer import (
-        Deferred, DeferredList,
+        Deferred, gatherResults,
         succeed,
         inlineCallbacks, returnValue)
 
@@ -14,7 +14,7 @@ from pendrell.util import humanizeBytes, normalizeBytes, b64random
 from pendrell.cases.http_server import Site, NOT_DONE_YET
 
 
-CHUNK_SIZE= 16 * 1024
+CHUNK_SIZE= 64 * 1024
 
 class JunkSiteTestMixin(object):
 
@@ -44,22 +44,16 @@ class JunkSiteTestMixin(object):
     def _test_getJunk(self, size, suffix):
         url = "%s/%d.%s" % (self._baseURL, size, suffix)
         log.debug("Getting junk: %s" % url)
-
         count = yield self.getPageLength(url)
-
         bytes = normalizeBytes(size, suffix)
         self.assertEquals(bytes, count)
 
 
     def _test_getJunks(self, count, size, suffix):
-        ds = list()
-
-        for i in xrange(0, count):
-            d = self._test_getJunk(size, suffix)
-            ds.append(d)
-
-        log.debug("Waiting for %d responses." % len(ds))
-        return DeferredList(ds)
+        log.debug("Waiting for %d responses." % count)
+        return gatherResults([
+            self._test_getJunk(size, suffix) for i in xrange(0, count)
+            ])
 
 
 

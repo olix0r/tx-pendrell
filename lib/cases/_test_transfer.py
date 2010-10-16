@@ -1,4 +1,8 @@
-from twisted.internet.defer import DeferredList, inlineCallbacks, returnValue
+import random
+
+from twisted.internet.defer import (DeferredList, gatherResults,
+        inlineCallbacks, returnValue)
+from twisted.internet.task import Cooperator
 from twisted.python import log
 from twisted.trial.unittest import TestCase
 
@@ -21,8 +25,6 @@ class _Request(messages.Request):
     responseClass = _Response
 
 
-
-
 class TransferTestMixin(JunkSiteTestMixin):
 
     chunkSize = 8 * 1024
@@ -40,11 +42,21 @@ class TransferTestMixin(JunkSiteTestMixin):
     def test_0002xKB001(self):
         return self._test_getJunks(2, 1, "KB")
 
-    def test_0002xMB001(self):
-        return self._test_getJunks(2, 1, "MB")
+    def test_0001xMB016_0002xMB008(self):
+        return gatherResults([
+                self._test_getJunk(16, "MB"),
+                self._test_getJunk(8, "MB"),
+                self._test_getJunk(8, "MB"),
+                ])
 
-    def test_0128xKB001(self):
-        return self._test_getJunks(128, 1, "KB")
+    def test_0016xMB001_0016xKB001(self):
+        reqs = [self._test_getJunk(1, "MB") for i in xrange(0, 16)] + \
+                [self._test_getJunk(1, "KB") for i in xrange(0, 16)]
+        random.shuffle(reqs)
+        return gatherResults(reqs)
+
+    def test_0128xKB0128(self):
+        return self._test_getJunks(128, 128, "KB")
 
 
 
