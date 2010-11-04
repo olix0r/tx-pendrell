@@ -23,6 +23,9 @@ several advantages over prior art (or at least urllib2 and twisted.web.client):
 Changelog
 ---------
 
+Version 0.3.5
+  * Typo fix in version compatibility
+
 Version 0.3.4
   * Much less logging
   * Version compatibility object eliminates build-time requirements on Twisted
