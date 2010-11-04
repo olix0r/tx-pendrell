@@ -4,7 +4,7 @@ try:
 except ImportError:
   class Version(object):
     def __init__(self, package, major, minor, nano, pre=None):
-      self.package = pacakge
+      self.package = package
       self.major = major
       self.minor = minor
       self.nano = nano
@@ -18,7 +18,7 @@ except ImportError:
 
 
 copyright = """Copyright (c) 2008-2010 Oliver V. Gould.  All rights reserved."""
-version = Version("pendrell", 0, 3, 4)
+version = Version("pendrell", 0, 3, 5)
 
 # Don't export t.p.v.Version
 del Version
