@@ -11,7 +11,7 @@ except ImportError:
       self.pre = pre
 
     def short(self):
-      fmt = "{0.package} {0.major}.{0.minor}.{0.nano}"
+      fmt = "{0.major}.{0.minor}.{0.nano}"
       if self.pre:
         fmt += "pre{0.pre}"
       return fmt.format(self)
