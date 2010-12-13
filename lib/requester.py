@@ -103,6 +103,7 @@ class Multiplexer(object):
 
 class RequesterBase(_ClientFactory):
 
+    noisy = False
     secure = False
 
     def __init__(self, scheme, host, port, timeout=None):
