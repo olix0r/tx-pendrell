@@ -23,6 +23,9 @@ several advantages over prior art (or at least urllib2 and twisted.web.client):
 Changelog
 ---------
 
+Version 0.3.7
+  * Make HTTP more less-noisy ;p
+
 Version 0.3.6
   * Make HTTP less noisy.
 

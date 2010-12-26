@@ -72,7 +72,7 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
 
 
     def timeoutConnection(self):
-        log.debug("%r: connection timeout" % self)
+        #log.debug("%r: connection timeout" % self)
         self.timedOut = True
         return policies.TimeoutMixin.timeoutConnection(self)
 
@@ -101,7 +101,7 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
         """Perform the given HTTP request."""
         request.prepareHeaders()
 
-        log.debug("Sending request" % request)
+        #log.debug("Sending request" % request)
         self.sendCommand(request)
         self.sendHeaders(request)
         self.sendContent(request)
@@ -303,37 +303,37 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
 
     def handleResponse(self, response):
         # Done processing the current request
-        logFmt = "%r: %s: handling %%s response %r [%d]" % (
-                 self, response.request, response, len(response))
+        #logFmt = "%r: %s: handling %%s response %r [%d]" % (
+        #         self, response.request, response, len(response))
 
         if self.timedOut:
-            log.debug(logFmt % "timed-out")
+            #log.debug(logFmt % "timed-out")
             response.status = http.REQUEST_TIMEOUT
             responseValue = ResponseTimeout.Failure(response, self.timedOut)
 
         elif response.status in REDIRECT_CODES:
             # Response redirected
-            log.debug(logFmt % "redirect")
+            #log.debug(logFmt % "redirect")
             responseValue = RedirectedResponse.Failure(response)
 
         elif response.status in RETRY_CODES:
             # Response redirected
-            log.debug(logFmt % "redirect")
+            #log.debug(logFmt % "redirect")
             responseValue = RetryResponse.Failure(response)
 
         elif response.status in UNAUTHORIZED_CODES:
             # Response unauthorized
-            log.debug(logFmt % "unauthorized")
+            #log.debug(logFmt % "unauthorized")
             responseValue = UnauthorizedResponse.Failure(response)
 
         elif response.status in OKAY_CODES:
             # SUCCESS
-            log.debug(logFmt % "success")
+            #log.debug(logFmt % "success")
             responseValue = response
 
         else:
             # Generic failure
-            log.debug(logFmt % "failure")
+            #log.debug(logFmt % "failure")
             responseValue = WebError.Failure(response)
 
         reactor.callLater(0, response.request.response.callback, responseValue)
