@@ -216,7 +216,7 @@ class RequesterBase(_ClientFactory):
 
     def connect(self):
         assert self.disconnected
-        return reactor.connectTCP(self.host, self.port, self)
+        return reactor.connectTCP(self.host, self.port, self, timeout=self.timeout)
 
 
     def buildProtocol(self, addr):

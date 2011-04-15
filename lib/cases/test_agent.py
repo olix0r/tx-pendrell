@@ -125,8 +125,8 @@ class _TimeoutServerFactory(protocol.ServerFactory):
 class TimeoutTest(PendrellTestMixin, unittest.TestCase):
     """Test request timeout functionality."""
 
-    timeout = 5  # Test timeout
-    requestTimeout = 2  # Request timeout (being tested)
+    timeout = 3  # Test timeout
+    requestTimeout = 1  # Request timeout (being tested)
     _port = 9798
 
     def setUp(self):
@@ -143,17 +143,16 @@ class TimeoutTest(PendrellTestMixin, unittest.TestCase):
     @inlineCallbacks
     def test_timeout(self):
         from time import sleep
+        t0 = reactor.seconds()
         try:
             rsp = yield self.getPage("http://127.0.0.1:%d/" % self._port,
                     timeout=self.requestTimeout)
 
         except netErr.TimeoutError:
-            timedOut = True
+            self.assertEquals(self.requestTimeout, int(reactor.seconds()-t0))
 
         else:
-            timedOut = False
-
-        self.assertTrue(timedOut)
+            fail("Did not timeout")
 
 
 
