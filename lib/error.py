@@ -88,7 +88,7 @@ class ResponseTimeout(WebError, netErr.TimeoutError):
         self.timeout = timeout
 
     def __str__(self):
-        return "%Timed out after %s" % (self.timeout)
+        return "Timed out after %d" % (self.timeout)
 
     def __repr__(self):
         return "<%s: timeout=%s>" % (self.__class__.__name__, self.timeout)

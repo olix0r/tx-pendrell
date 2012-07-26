@@ -309,7 +309,7 @@ class HTTPProtocol(basic.LineReceiver, policies.TimeoutMixin):
         if self.timedOut:
             #log.debug(logFmt % "timed-out")
             response.status = http.REQUEST_TIMEOUT
-            responseValue = ResponseTimeout.Failure(response, self.timedOut)
+            responseValue = ResponseTimeout.Failure(response, self.timeOut)
 
         elif response.status in REDIRECT_CODES:
             # Response redirected
